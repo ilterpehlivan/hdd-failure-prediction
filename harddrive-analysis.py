@@ -173,7 +173,8 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
     plt.ylim([0, 1.05])
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
-    plt.show()
+    # plt.show()
+    plt.savefig("LogR-ROC.png", dpi=300)
 
 
 
