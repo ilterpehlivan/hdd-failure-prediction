@@ -40,6 +40,28 @@ def get_hdd_statistics(df):
     ax.set_xlabel("Model")
     plt.show()
 
+def clean_not_failing_models(df):
+    # number of different types of harddrives
+    print("number of different harddrives", df['model'].value_counts().shape)
+    group_by_model = df.groupby("model")["failure"]
+    # mean_failure = group_by_model.mean()
+    # print(mean_failure.describe)
+    group_by_model_agg = group_by_model.agg(
+        ['count', 'sum', 'mean']
+    ).reset_index()
+    group_by_model_agg["fail_rate"] = group_by_model_agg["mean"] * (10 ** 5)
+
+    zero_failed_models = group_by_model_agg.loc[group_by_model_agg["fail_rate"] == 0.0]
+    print(zero_failed_models)
+    # print(type(zero_failed_models))
+    print(list(zero_failed_models.columns.values))
+    # print(zero_failed_models.iloc[:,0])
+
+    # lets drop the zero failed models from df
+    df_cleaned = df.loc[~df['model'].isin(zero_failed_models["model"])]
+
+    print("number of different harddrives", df_cleaned['model'].value_counts().shape)
+    return df_cleaned
 
 def print_split_rates(y_train, y_test):
     # summarize train and test composition
@@ -133,11 +155,11 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
     model = LogisticRegression()
     over = SMOTE(sampling_strategy=0.1)
     under = RandomUnderSampler(sampling_strategy=0.5)
-    steps = [('over', over), ('under', under), ('model', model)]
+    steps = [('over', over), ('under', under)]
     pipeline = Pipeline(steps=steps)
     # apply cross validation i.e K-Fold
     kfold = StratifiedKFold(n_splits=k, shuffle=True, random_state=1)
-
+    X,y = pipeline.fit_resample(X,y)
     # enumerate the splits and summarize the distributions
     for train_ix, test_ix in kfold.split(X, y):
         X_train = X.iloc[train_ix]
@@ -148,13 +170,13 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
         print_split_rates(y_train, y_test)
 
         print("running the pipeline fit..\n")
-        pipeline.fit(X_train,y_train)
+        model.fit(X_train,y_train)
         y_pred = model.predict(X_test)
         # Scores
-        precision += precision_score(y_test, y_pred, average='binary')
-        recall += recall_score(y_test, y_pred, average='binary')
-        acc += accuracy_score(y_test, y_pred)
-        f1 += f1_score(y_test, y_pred, average='binary')
+        precision += [precision_score(y_test, y_pred, average='binary')]
+        recall += [recall_score(y_test, y_pred, average='binary')]
+        acc += [accuracy_score(y_test, y_pred)]
+        f1 += [f1_score(y_test, y_pred, average='binary')]
         # auc_score += [roc_auc_score(y_test,y_pred)]
         # cross_val_score()
 
@@ -197,11 +219,13 @@ def main():
     # drop constant columns
     df = df.loc[:, ~df.isnull().all()]
     print(df.shape)
+
+    cleaned_df = clean_not_failing_models(df)
     # get_hdd_statistics(df)
     #This is an unbalanced data
     features = [5, 9, 187, 188, 193, 194, 197, 198, 241, 242]
     # eval_basic_logical_regression_kfold(features, df)
-    eval_with_sampling_and_kfold_logical_regression(features,df)
+    eval_with_sampling_and_kfold_logical_regression(features,cleaned_df)
 
 if __name__ == '__main__':
     main()
