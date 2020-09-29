@@ -17,7 +17,7 @@ TODO: < Deval >
 
 ## Feature Selection
 
-TODO: <Ilter>
+TODO: < Ilter >
 
 ## Preprocessing
 
@@ -35,7 +35,7 @@ TODO: <Ilter>
 
 ### Logical Regression
 
-TODO:<Khaled>
+TODO: < Khaled >
 
 ### Naive Bayes
 TODO: #Phase2
@@ -44,4 +44,4 @@ TODO: #Phase2
 TODO: #Phase2
 
 ## Improvements
-TODO:<ILTER> explain how to improve the results
+TODO: < ILTER > explain how to improve the results
