@@ -13,11 +13,11 @@ https://www.kaggle.com/backblaze/hard-drive-test-data
 
 ## Dataset
 
-TODO:
+TODO: < Deval >
 
 ## Feature Selection
 
-TODO:
+TODO: <Ilter>
 
 ## Preprocessing
 
@@ -35,9 +35,13 @@ TODO:
 
 ### Logical Regression
 
-TODO:
+TODO:<Khaled>
 
 ### Naive Bayes
-TODO:
+TODO: #Phase2
 
 ### Random Forest
+TODO: #Phase2
+
+## Improvements
+TODO:<ILTER> explain how to improve the results
