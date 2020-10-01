@@ -5,13 +5,17 @@ import matplotlib.pyplot as plt
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline
 from imblearn.under_sampling import RandomUnderSampler
+from numpy import mean
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_curve, precision_score, recall_score, accuracy_score, f1_score, auc
+from sklearn.metrics import roc_curve, precision_score, recall_score, accuracy_score, f1_score, auc, confusion_matrix, \
+    zero_one_loss, classification_report
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import KFold
 
 DATA_SET_PATH = "./data/harddrive.csv"
+
+# NOT PART OF THE RUNNING CODE JUST FOR STATISTICS
 # First we first check some statistics
 def get_hdd_statistics(df):
     print(df.head(5))
@@ -40,9 +44,78 @@ def get_hdd_statistics(df):
     ax.set_xlabel("Model")
     plt.show()
 
+# NOT PART OF THE RUNNING CODE JUST FOR STATISTICS
+def eval_basic_logical_regression_kfold(features, df):
+        """
+        Evaluating Logical Regression
+        :param features: selected features
+        :param df: dataframe
+        :return: instance of EvalIndex,it includes four attribute:precission,recall,accuracy,f1_score
+        """
+        roc_auc, precision, recall, acc, f1, auc_score = [[] for _ in range(6)]
+
+        X, y = init_model(df, features)
+        # trying to fix scewness
+        X = np.log1p(X)
+
+        print("X->", X)
+        print("y->", y)
+
+        # split into train/test sets %70 train and %30 test
+        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+        # fit a model
+        model = LogisticRegression()
+        # apply cross validation i.e K-Fold
+        k = 5
+        kf = KFold(n_splits=k, shuffle=True, random_state=1)
+        for train_indecies, test_indecies in kf.split(X):
+            X_train = X.iloc[train_indecies]
+            X_test = X.iloc[test_indecies]
+            y_train = y[train_indecies]
+            y_test = y[test_indecies]
+            # print the split rates
+            print_split_rates(y_train, y_test)
+
+            print("\nThe model fits the TRAIN SET for train and test")
+
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+
+            # Scores
+            precision += precision_score(y_test, y_pred, average='binary')
+            recall += recall_score(y_test, y_pred, average='binary')
+            acc += accuracy_score(y_test, y_pred)
+            f1 += f1_score(y_test, y_pred, average='binary')
+            # auc_score += [roc_auc_score(y_test,y_pred)]
+            # cross_val_score()
+
+            # print ROC curve
+            fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+            roc_auc += [auc(fpr, tpr)]
+
+        roc_auc = sum(roc_auc) / k
+        print("\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
+                                                                               sum(acc) / k, sum(f1) / k))
+        plt.title('Receiver Operating Characteristic')
+        plt.plot(fpr, tpr, 'b', label='AUC = %0.3f' % roc_auc)
+        plt.legend(loc='lower right')
+        plt.plot([0, 1], [0, 1], 'r--')
+        plt.xlim([0, 1])
+        plt.ylim([0, 1.05])
+        plt.ylabel('True Positive Rate')
+        plt.xlabel('False Positive Rate')
+        plt.show()
+        # plt.savefig("ROC.png", dpi=300)
+
+# ACTUAL MODEL TRAINING START HERE
 def clean_not_failing_models(df):
+    #First drop constant columns
+    print(df.shape)
+    df = df.loc[:, ~df.isnull().all()]
+    print(df.shape)
+
     # number of different types of harddrives
-    print("number of different harddrives", df['model'].value_counts().shape)
+    print("before cleanup->number of different harddrives", df['model'].value_counts().shape)
     group_by_model = df.groupby("model")["failure"]
     # mean_failure = group_by_model.mean()
     # print(mean_failure.describe)
@@ -52,15 +125,16 @@ def clean_not_failing_models(df):
     group_by_model_agg["fail_rate"] = group_by_model_agg["mean"] * (10 ** 5)
 
     zero_failed_models = group_by_model_agg.loc[group_by_model_agg["fail_rate"] == 0.0]
+    print("**Print the HDD models which are not failing at all**")
     print(zero_failed_models)
     # print(type(zero_failed_models))
-    print(list(zero_failed_models.columns.values))
+    #print(list(zero_failed_models.columns.values))
     # print(zero_failed_models.iloc[:,0])
 
     # lets drop the zero failed models from df
     df_cleaned = df.loc[~df['model'].isin(zero_failed_models["model"])]
 
-    print("number of different harddrives", df_cleaned['model'].value_counts().shape)
+    print("after cleanup->number of different harddrives", df_cleaned['model'].value_counts().shape)
     return df_cleaned
 
 def print_split_rates(y_train, y_test):
@@ -68,67 +142,6 @@ def print_split_rates(y_train, y_test):
     train_0, train_1 = len(y_train[y_train == 0]), len(y_train[y_train == 1])
     test_0, test_1 = len(y_test[y_test == 0]), len(y_test[y_test == 1])
     print('>Train: 0=%d, 1=%d, Test: 0=%d, 1=%d' % (train_0, train_1, test_0, test_1))
-
-def eval_basic_logical_regression_kfold(features, df):
-    """
-    Evaluating Logical Regression
-    :param features: selected features
-    :param df: dataframe
-    :return: instance of EvalIndex,it includes four attribute:precission,recall,accuracy,f1_score
-    """
-    roc_auc, precision, recall, acc, f1,auc_score = [[] for _ in range(6)]
-
-    X,y = init_model(df, features)
-    # trying to fix scewness
-    X = np.log1p(X)
-
-    print("X->",X)
-    print("y->",y)
-
-    # split into train/test sets %70 train and %30 test
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
-    # fit a model
-    model = LogisticRegression()
-    # apply cross validation i.e K-Fold
-    k = 5
-    kf = KFold(n_splits=k, shuffle=True, random_state=1)
-    for train_indecies,test_indecies in kf.split(X):
-        X_train = X.iloc[train_indecies]
-        X_test = X.iloc[test_indecies]
-        y_train = y[train_indecies]
-        y_test = y[test_indecies]
-        #print the split rates
-        print_split_rates(y_train,y_test)
-
-        print("\nThe model fits the TRAIN SET for train and test")
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
-        #Scores
-        precision += precision_score(y_test,y_pred,average='binary')
-        recall += recall_score(y_test,y_pred,average='binary')
-        acc += accuracy_score(y_test,y_pred)
-        f1 += f1_score(y_test,y_pred,average='binary')
-        # auc_score += [roc_auc_score(y_test,y_pred)]
-        # cross_val_score()
-
-        # print ROC curve
-        fpr, tpr, thresholds = roc_curve(y_test, y_pred)
-        roc_auc += [auc(fpr, tpr)]
-
-    roc_auc = sum(roc_auc) / k
-    print("\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
-                                                                                          sum(acc) / k, sum(f1) / k))
-    plt.title('Receiver Operating Characteristic')
-    plt.plot(fpr, tpr, 'b', label='AUC = %0.3f' % roc_auc)
-    plt.legend(loc='lower right')
-    plt.plot([0, 1], [0, 1], 'r--')
-    plt.xlim([0, 1])
-    plt.ylim([0, 1.05])
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('False Positive Rate')
-    plt.show()
-    # plt.savefig("ROC.png", dpi=300)
 
 
 def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
@@ -146,11 +159,12 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
     # trying to fix scewness
     X = np.log1p(X)
 
-    print("X->", X)
-    print("y->", y)
+    print("**Before sampling**")
+    # print("X->", X.describe())
+    print("y-Mean", mean(y))
 
     # split into train/test sets %70 train and %30 test
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    X, X_test_origin, y, y_test_origin = train_test_split(X, y, test_size=0.3)
     # fit a model
     model = LogisticRegression()
     over = SMOTE(sampling_strategy=0.1)
@@ -160,6 +174,11 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
     # apply cross validation i.e K-Fold
     kfold = StratifiedKFold(n_splits=k, shuffle=True, random_state=1)
     X,y = pipeline.fit_resample(X,y)
+
+    print("**After sampling**")
+    # print("X->", X.describe())
+    print("y-Mean", mean(y))
+
     # enumerate the splits and summarize the distributions
     for train_ix, test_ix in kfold.split(X, y):
         X_train = X.iloc[train_ix]
@@ -169,7 +188,7 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
         # print the split rates
         print_split_rates(y_train, y_test)
 
-        print("running the pipeline fit..\n")
+        print("running the model to fit..")
         model.fit(X_train,y_train)
         y_pred = model.predict(X_test)
         # Scores
@@ -180,15 +199,24 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
         # auc_score += [roc_auc_score(y_test,y_pred)]
         # cross_val_score()
 
-        # print ROC curve
+        # collect for ROC curve
         fpr, tpr, thresholds = roc_curve(y_test, y_pred)
         roc_auc += [auc(fpr, tpr)]
 
+        #print confusion matrix
+        modelResults = confusion_matrix(y_test, y_pred)
+        error = zero_one_loss(y_test, y_pred)
+        print("Results for The model:\n")
+        print(modelResults)
+        print("Accuracy:",1 - error)
+        # print(1 - error, '\n')
+        print(classification_report(y_test, y_pred))
+
     roc_auc = sum(roc_auc) / k
-    print("\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
+    print("Results within the sampled dataset:\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
                                                                            sum(acc) / k, sum(f1) / k))
-    plt.title('Receiver Operating Characteristic')
-    plt.plot(fpr, tpr, 'b', label='AUC = %0.3f' % roc_auc)
+    plt.title('Sampled - Receiver Operating Characteristic')
+    plt.plot(fpr, tpr, 'b', label='AUC-Sampled = %0.3f' % roc_auc)
     plt.legend(loc='lower right')
     plt.plot([0, 1], [0, 1], 'r--')
     plt.xlim([0, 1])
@@ -196,7 +224,36 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
     # plt.show()
-    plt.savefig("LogR-ROC.png", dpi=300)
+    # plt.savefig("Sampled-LogR-ROC.png", dpi=300)
+
+    # Results based on original test data (not sampled)
+    y_pred_final = model.predict(X_test_origin)
+    # Scores
+    modelResults_f = confusion_matrix(y_test_origin, y_pred_final)
+    error_f = zero_one_loss(y_test_origin, y_pred_final)
+
+    print("Final Results for The model:")
+    print(modelResults_f)
+    print("Final Accuracy:",1 - error_f)
+    # print(1 - error_f, '\n')
+    print(classification_report(y_test_origin, y_pred_final))
+    # print("\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(modelResults_f, sum(recall) / k,
+    #                                                                        sum(acc) / k, sum(f1) / k))
+    # Print the final auc
+    fpr_final, tpr_final, thresholds_final = roc_curve(y_test_origin, y_pred_final)
+    roc_auc_final = auc(fpr_final, tpr_final)
+    print("**Printing the final auc ***")
+    plt.title('Receiver Operating Characteristic')
+    plt.plot(fpr_final, tpr_final, 'b', label='AUC-Origin = %0.3f' % roc_auc_final)
+    plt.legend(loc='lower right')
+    plt.plot([0, 1], [0, 1], 'r--')
+    plt.xlim([0, 1])
+    plt.ylim([0, 1.05])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.savefig("Origin-LogR-ROC.png", dpi=300)
+
+
 
 
 
@@ -215,10 +272,6 @@ def init_model(df, features):
 def main():
     # plot_fail_per_model()
     df = pd.read_csv(DATA_SET_PATH)
-    print(df.shape)
-    # drop constant columns
-    df = df.loc[:, ~df.isnull().all()]
-    print(df.shape)
 
     cleaned_df = clean_not_failing_models(df)
     # get_hdd_statistics(df)
