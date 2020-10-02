@@ -213,7 +213,7 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
         print(classification_report(y_test, y_pred))
 
     roc_auc = sum(roc_auc) / k
-    print("Results within the sampled dataset:\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
+    print("*****************\nSummary results of the sampled train/test:\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
                                                                            sum(acc) / k, sum(f1) / k))
     plt.title('Sampled - Receiver Operating Characteristic')
     plt.plot(fpr, tpr, 'b', label='AUC-Sampled = %0.3f' % roc_auc)
@@ -232,7 +232,7 @@ def eval_with_sampling_and_kfold_logical_regression(features, df,k=5):
     modelResults_f = confusion_matrix(y_test_origin, y_pred_final)
     error_f = zero_one_loss(y_test_origin, y_pred_final)
 
-    print("Final Results for The model:")
+    print("*****************\nFinal Results for The model:")
     print(modelResults_f)
     print("Final Accuracy:",1 - error_f)
     # print(1 - error_f, '\n')
@@ -269,14 +269,21 @@ def init_model(df, features):
     return X,y
 
 
+def print_some_info_about_dataset(df):
+    print(df.head(10))
+    print(df.info())
+    # print(df.columns.values)
+    # print(len(df.columns.values))
+
 def main():
     # plot_fail_per_model()
     df = pd.read_csv(DATA_SET_PATH)
-
+    print_some_info_about_dataset(df)
     cleaned_df = clean_not_failing_models(df)
     # get_hdd_statistics(df)
     #This is an unbalanced data
-    features = [5, 9, 187, 188, 193, 194, 197, 198, 241, 242]
+    # features = [5, 9, 187, 188, 193, 194, 197, 198, 241, 242]
+    features = [5, 9, 187, 188, 197, 198]
     # eval_basic_logical_regression_kfold(features, df)
     eval_with_sampling_and_kfold_logical_regression(features,cleaned_df)
 
