@@ -58,8 +58,8 @@ def eval_basic_logical_regression_kfold(features, df):
         # trying to fix scewness
         X = np.log1p(X)
 
-        print("X->", X)
-        print("y->", y)
+        # print("X->", X)
+        # print("y->", y)
 
         # split into train/test sets %70 train and %30 test
         # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
@@ -81,11 +81,11 @@ def eval_basic_logical_regression_kfold(features, df):
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
 
-            # Scores
-            precision += precision_score(y_test, y_pred, average='binary')
-            recall += recall_score(y_test, y_pred, average='binary')
-            acc += accuracy_score(y_test, y_pred)
-            f1 += f1_score(y_test, y_pred, average='binary')
+            # cumulative Scores
+            precision += [precision_score(y_test, y_pred, average='binary')]
+            recall += [recall_score(y_test, y_pred, average='binary')]
+            acc += [accuracy_score(y_test, y_pred)]
+            f1 += [f1_score(y_test, y_pred, average='binary')]
             # auc_score += [roc_auc_score(y_test,y_pred)]
             # cross_val_score()
 
@@ -93,9 +93,20 @@ def eval_basic_logical_regression_kfold(features, df):
             fpr, tpr, thresholds = roc_curve(y_test, y_pred)
             roc_auc += [auc(fpr, tpr)]
 
+            # print confusion matrix
+            modelResults = confusion_matrix(y_test, y_pred)
+            error = zero_one_loss(y_test, y_pred)
+            print("Results for The model:\n")
+            print(modelResults)
+            print("Accuracy:", 1 - error)
+            # print(1 - error, '\n')
+            print(classification_report(y_test, y_pred))
+
         roc_auc = sum(roc_auc) / k
         print("\nprecision:{0}\nrecall:{1}\naccuracy:{2}\nf1_score:{3}".format(sum(precision) / k, sum(recall) / k,
                                                                                sum(acc) / k, sum(f1) / k))
+
+
         plt.title('Receiver Operating Characteristic')
         plt.plot(fpr, tpr, 'b', label='AUC = %0.3f' % roc_auc)
         plt.legend(loc='lower right')
@@ -284,7 +295,7 @@ def main():
     #This is an unbalanced data
     # features = [5, 9, 187, 188, 193, 194, 197, 198, 241, 242]
     features = [5, 9, 187, 188, 197, 198]
-    # eval_basic_logical_regression_kfold(features, df)
+    # eval_basic_logical_regression_kfold(features, cleaned_df)
     eval_with_sampling_and_kfold_logical_regression(features,cleaned_df)
 
 if __name__ == '__main__':
