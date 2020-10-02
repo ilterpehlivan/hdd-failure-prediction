@@ -62,8 +62,12 @@ Additionally we put the SMART 9 which is the lifetime of the HDD as we believed 
 ## Algorithms
 
 ### Logical Regression
-
-TODO: < Khaled >
+*  the logistic model has been used to model the probability of having a failed/working HDD event.
+*  Sampled data has been used in the training process.
+*  The first round of testing (k-fold test sets) uses sampled data.
+*  Final round of testing is being done using unsampled data (sliced from the orignal dataset before the sampling)
+*  Confusion matrix is used in each round of testing to evaluate the accuracy of the predictions.
+*  classification_report has been used to build a report of the main classification metrics.
 
 ### Naive Bayes
 TODO: #Phase2
